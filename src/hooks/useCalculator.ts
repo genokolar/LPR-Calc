@@ -298,9 +298,9 @@ export function useCalculator(lprData: LPRData[]) {
     endDate: '',
     principal: 0,
     rateMode: 'oneYear',
-    dayAlgorithm: 'headNotTail',
-    dayBase: 360,
-    interestMethod: 'segmentLPR',
+    dayAlgorithm: 'bothEnds',
+    dayBase: 365,
+    interestMethod: 'startMonthLPR',
     rateMultiplier: 1
   });
 

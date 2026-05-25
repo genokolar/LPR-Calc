@@ -224,12 +224,12 @@ function App() {
                   className="flex flex-wrap gap-4"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="headNotTail" id="headNotTail" />
-                    <Label htmlFor="headNotTail" className="cursor-pointer">算头不算尾</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
                     <RadioGroupItem value="bothEnds" id="bothEnds" />
                     <Label htmlFor="bothEnds" className="cursor-pointer">两头都算</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="headNotTail" id="headNotTail" />
+                    <Label htmlFor="headNotTail" className="cursor-pointer">算头不算尾</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -243,12 +243,12 @@ function App() {
                   className="flex flex-wrap gap-4"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="360" id="base360" />
-                    <Label htmlFor="base360" className="cursor-pointer">360天</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
                     <RadioGroupItem value="365" id="base365" />
                     <Label htmlFor="base365" className="cursor-pointer">365天</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="360" id="base360" />
+                    <Label htmlFor="base360" className="cursor-pointer">360天</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -262,20 +262,20 @@ function App() {
                   className="grid grid-cols-1 sm:grid-cols-2 gap-3"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="segmentLPR" id="segmentLPR" />
-                    <Label htmlFor="segmentLPR" className="cursor-pointer text-sm">分段LPR</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="averageLPR" id="averageLPR" />
-                    <Label htmlFor="averageLPR" className="cursor-pointer text-sm">平均LPR</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
                     <RadioGroupItem value="startMonthLPR" id="startMonthLPR" />
                     <Label htmlFor="startMonthLPR" className="cursor-pointer text-sm">起始月LPR</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="endMonthLPR" id="endMonthLPR" />
                     <Label htmlFor="endMonthLPR" className="cursor-pointer text-sm">截止月LPR</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="segmentLPR" id="segmentLPR" />
+                    <Label htmlFor="segmentLPR" className="cursor-pointer text-sm">分段LPR</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="averageLPR" id="averageLPR" />
+                    <Label htmlFor="averageLPR" className="cursor-pointer text-sm">平均LPR</Label>
                   </div>
                 </RadioGroup>
               </div>
