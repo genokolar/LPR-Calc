@@ -113,7 +113,7 @@ function App() {
             <h1 className="text-3xl font-bold text-gray-900">LPR利息计算器</h1>
           </div>
           <p className="text-gray-600">
-            法律LPR司法利息计算器，基于每月LPR利率分段计算、明细一键下载、司法认可
+            法律LPR司法利息计算器，基于LPR利率进行计算、明细一键下载
           </p>
           
           {/* 最新LPR信息 - 可点击查看历史 */}
