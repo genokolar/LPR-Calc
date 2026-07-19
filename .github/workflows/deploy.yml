@@ -17,6 +17,11 @@ on:
       - 'postcss.config.js'
       - '.github/workflows/deploy.yml'
   
+  # 定时触发：每月20日(及21-24日)自动检查更新LPR数据并部署
+  # 因为LPR通常在每月20日公布（遇节假日顺延），所以多设几天确保捕获
+  schedule:
+    - cron: '0 10 20-24 * *'
+  
   # 允许手动触发
   workflow_dispatch:
 
@@ -47,19 +52,57 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # 3. 安装依赖
+      # 3. 从中国货币网抓取最新LPR数据
+      - name: Fetch latest LPR data
+        run: |
+          echo "Fetching latest LPR from chinamoney.com.cn..."
+          # 尝试获取最新LPR数据
+          RESPONSE=$(curl -sL --max-time 15 \
+            'https://www.chinamoney.com.cn/r/cms/www/chinamoney/data/currency/bk-lpr.json' || echo "")
+          
+          if [ -n "$RESPONSE" ] && echo "$RESPONSE" | grep -q '"records"'; then
+            # 解析JSON获取日期和利率
+            DATE=$(echo "$RESPONSE" | grep -oP '"showDateCN":"\K[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
+            LPR_1Y=$(echo "$RESPONSE" | grep -oP '"termCode":"1Y".*?"shibor":"\K[0-9.]+' | head -1)
+            LPR_5Y=$(echo "$RESPONSE" | grep -oP '"termCode":"5Y".*?"shibor":"\K[0-9.]+' | head -1)
+            
+            if [ -n "$DATE" ] && [ -n "$LPR_1Y" ] && [ -n "$LPR_5Y" ]; then
+              echo "Fetched LPR data: $DATE - 1Y: $LPR_1Y%, 5Y: $LPR_5Y%"
+              # 写入 public/lpr-latest.json
+              cat > public/lpr-latest.json << EOF
+{
+  "date": "$DATE",
+  "oneYear": $LPR_1Y,
+  "fiveYear": $LPR_5Y,
+  "source": "chinamoney.com.cn",
+  "fetchedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+              echo "Updated public/lpr-latest.json"
+            else
+              echo "Failed to parse LPR data, keeping existing file"
+            fi
+          else
+            echo "Failed to fetch from chinamoney.com.cn, keeping existing file"
+          fi
+          
+          # 显示最终文件内容
+          echo "--- public/lpr-latest.json ---"
+          cat public/lpr-latest.json || echo "File does not exist"
+
+      # 4. 安装依赖
       - name: Install dependencies
         run: npm ci
 
-      # 4. 构建项目
+      # 5. 构建项目
       - name: Build
         run: npm run build
 
-      # 5. 配置 GitHub Pages
+      # 6. 配置 GitHub Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      # 6. 上传构建产物
+      # 7. 上传构建产物
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -1,4 +1,4 @@
-// LPR历史数据 - 从2019年8月到2026年2月
+// LPR历史数据 - 从2019年8月到2026年6月
 // 数据来源：全国银行间同业拆借中心、中国货币网
 
 export interface LPRData {
@@ -10,6 +10,10 @@ export interface LPRData {
 // 默认LPR历史数据列表（按日期降序排列，最新的在前面）
 // 这些数据会在首次使用时存入localStorage，之后可从管理界面更新
 export const lprHistoryData: LPRData[] = [
+  { date: "2026-06-22", oneYear: 3.00, fiveYear: 3.50 },
+  { date: "2026-05-20", oneYear: 3.00, fiveYear: 3.50 },
+  { date: "2026-04-21", oneYear: 3.00, fiveYear: 3.50 },
+  { date: "2026-03-20", oneYear: 3.00, fiveYear: 3.50 },
   { date: "2026-02-24", oneYear: 3.00, fiveYear: 3.50 },
   { date: "2026-01-20", oneYear: 3.00, fiveYear: 3.50 },
   { date: "2025-12-22", oneYear: 3.00, fiveYear: 3.50 },

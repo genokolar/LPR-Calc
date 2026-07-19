@@ -12,7 +12,8 @@ const STORAGE_KEY = 'lpr_calculator_data';
 const STORAGE_TIMESTAMP = 'lpr_calculator_timestamp';
 const STORAGE_VERSION = 'lpr_calculator_version';
 
-const CURRENT_VERSION = '1.1'; // 版本更新以触发数据刷新
+// 当前数据版本，用于强制刷新
+const CURRENT_VERSION = '1.2';
 
 // 从localStorage读取数据
 function loadFromStorage(): LPRData[] | null {
@@ -68,7 +69,52 @@ export function getLastUpdateTime(): string | null {
   return getStorageTimestamp();
 }
 
+// 从构建产物中读取预抓取的LPR数据（方案一：GitHub Actions构建时嵌入）
+async function loadBuildTimeLPR(): Promise<LPRData | null> {
+  try {
+    const response = await fetch('./lpr-latest.json', {
+      method: 'GET',
+      cache: 'no-cache',
+    });
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    
+    // 验证数据格式
+    if (data.date && typeof data.oneYear === 'number' && typeof data.fiveYear === 'number') {
+      return {
+        date: data.date,
+        oneYear: data.oneYear,
+        fiveYear: data.fiveYear,
+      };
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// 将构建时数据合并到现有数据中
+function mergeBuildTimeData(existing: LPRData[], buildTime: LPRData): LPRData[] {
+  const index = existing.findIndex(d => d.date === buildTime.date);
+  
+  if (index >= 0) {
+    // 更新已有记录
+    const updated = [...existing];
+    updated[index] = buildTime;
+    return updated;
+  }
+  
+  // 插入新记录，保持降序
+  const updated = [buildTime, ...existing];
+  updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return updated;
+}
+
 export function useLPRData() {
+  // 初始化数据：优先从localStorage加载，否则使用默认数据
   const [lprData, setLprData] = useState<LPRData[]>(() => {
     const stored = loadFromStorage();
     if (stored && stored.length > 0) {
@@ -89,29 +135,35 @@ export function useLPRData() {
     saveToStorage(lprData);
   }, [lprData]);
 
-  // 自动检查更新（页面加载时）
+  // 页面加载时：先读取构建时嵌入的LPR数据，再尝试在线获取
   useEffect(() => {
-    if (shouldAutoCheck()) {
-      handleAutoCheck();
-    }
-  }, []);
-
-  // 自动检查（静默）
-  const handleAutoCheck = async () => {
-    try {
-      const result = await checkAndUpdateLPR(lprData);
-      if (result.updated && result.newEntry) {
-        setLprData(result.data);
-        setLastCheckResult({
-          updated: true,
-          message: `已自动更新LPR数据：${result.newEntry.date} 一年期${result.newEntry.oneYear}% 五年期${result.newEntry.fiveYear}%`,
+    async function initData() {
+      // 步骤1：读取构建时嵌入的数据（方案一，最可靠）
+      const buildTimeLPR = await loadBuildTimeLPR();
+      
+      if (buildTimeLPR) {
+        setLprData(prev => {
+          const merged = mergeBuildTimeData(prev, buildTimeLPR);
+          return merged;
         });
       }
-      setLastCheckTime();
-    } catch {
-      // 静默失败
+      
+      // 步骤2：尝试CORS代理在线获取（补充方案）
+      if (shouldAutoCheck()) {
+        try {
+          const result = await checkAndUpdateLPR(lprData);
+          if (result.updated && result.newEntry) {
+            setLprData(result.data);
+          }
+          setLastCheckTime();
+        } catch {
+          // 静默失败，构建时数据已足够
+        }
+      }
     }
-  };
+    
+    initData();
+  }, []);
 
   // 手动检查更新
   const checkUpdate = async (): Promise<boolean> => {
@@ -120,6 +172,26 @@ export function useLPRData() {
     setIsChecking(true);
     setLastCheckResult(null);
     
+    // 先尝试方案一：重新读取构建时数据
+    try {
+      const buildTimeLPR = await loadBuildTimeLPR();
+      if (buildTimeLPR) {
+        const existing = lprData.find(d => d.date === buildTimeLPR.date);
+        if (!existing || existing.oneYear !== buildTimeLPR.oneYear || existing.fiveYear !== buildTimeLPR.fiveYear) {
+          setLprData(prev => mergeBuildTimeData(prev, buildTimeLPR));
+          setLastCheckResult({
+            updated: true,
+            message: `已更新：${buildTimeLPR.date} 一年期${buildTimeLPR.oneYear}% 五年期${buildTimeLPR.fiveYear}%`,
+          });
+          setIsChecking(false);
+          return true;
+        }
+      }
+    } catch {
+      // 忽略
+    }
+    
+    // 再尝试方案二：CORS代理在线获取
     try {
       const result = await checkAndUpdateLPR(lprData);
       setLastCheckTime();
@@ -128,13 +200,13 @@ export function useLPRData() {
         setLprData(result.data);
         setLastCheckResult({
           updated: true,
-          message: `更新成功！${result.newEntry.date} 一年期${result.newEntry.oneYear}% 五年期${result.newEntry.fiveYear}%`,
+          message: `在线获取成功！${result.newEntry.date} 一年期${result.newEntry.oneYear}% 五年期${result.newEntry.fiveYear}%`,
         });
         return true;
       } else {
         setLastCheckResult({
           updated: false,
-          message: '当前已是最新数据，无需更新',
+          message: '当前已是最新数据',
         });
         return false;
       }
@@ -168,17 +240,7 @@ export function useLPRData() {
         return false;
       }
       
-      const existingIndex = lprData.findIndex(d => d.date === latest.date);
-      
-      if (existingIndex >= 0) {
-        const updated = [...lprData];
-        updated[existingIndex] = latest;
-        setLprData(updated);
-      } else {
-        const updated = [latest, ...lprData];
-        updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setLprData(updated);
-      }
+      setLprData(prev => mergeBuildTimeData(prev, latest));
       
       setLastCheckTime();
       setLastCheckResult({

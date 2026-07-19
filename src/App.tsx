@@ -112,10 +112,6 @@ function App() {
             </div>
             <h1 className="text-3xl font-bold text-gray-900">LPR利息计算器</h1>
           </div>
-          <p className="text-gray-600">
-            法律LPR司法利息计算器，基于LPR利率进行计算、明细一键下载
-          </p>
-          
           {/* 最新LPR信息 - 可点击查看历史 */}
           <button 
             onClick={() => setShowHistory(true)}
@@ -507,6 +503,9 @@ function App() {
           <p className="mt-1">LPR数据范围：{earliestDate} 至 {latestLPR.date}</p>
           <p className="mt-1 text-xs">
             提示：可通过"LPR数据管理"功能手动更新最新利率数据
+          </p>
+          <p className="mt-3 text-xs text-gray-400">
+            键圈欢乐多 - 蜀ICP备19008711号
           </p>
         </div>
       </div>

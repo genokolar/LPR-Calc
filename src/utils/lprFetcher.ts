@@ -4,16 +4,15 @@
 import type { LPRData } from '@/data/lprData';
 
 // CORS代理列表（按优先级排列）
+// 注：公共CORS代理服务可能随时不可用，如获取失败请通过LPR数据管理界面手动更新
 const CORS_PROXIES = [
+  'https://cors.eu.org/',
   'https://api.codetabs.com/v1/proxy?quest=',
   'https://api.allorigins.win/raw?url=',
 ];
 
 // 中国货币网LPR数据API
 const LPR_API_URL = 'https://www.chinamoney.com.cn/r/cms/www/chinamoney/data/currency/bk-lpr.json';
-
-// 历史数据API（用于获取更多历史数据）
-const LPR_HISTORY_API_URL = 'https://www.chinamoney.com.cn/r/cms/www/chinamoney/data/currency/bk-lpr-2.json';
 
 // LPR数据响应格式
 interface LPRApiResponse {
@@ -34,7 +33,16 @@ interface LPRApiResponse {
 
 // 使用代理获取数据
 async function fetchWithProxy(url: string, proxyUrl: string): Promise<Response> {
-  const fullUrl = proxyUrl + encodeURIComponent(url);
+  // 处理两种代理格式：
+  // 1. cors.eu.org/ 格式：直接拼接URL
+  // 2. ?quest= 或 ?url= 格式：需要encodeURIComponent
+  let fullUrl: string;
+  if (proxyUrl.endsWith('/')) {
+    fullUrl = proxyUrl + url;
+  } else {
+    fullUrl = proxyUrl + encodeURIComponent(url);
+  }
+  
   const response = await fetch(fullUrl, {
     method: 'GET',
     headers: {
@@ -59,7 +67,7 @@ async function fetchWithFallback(url: string): Promise<any> {
       const data = await response.json();
       
       // 验证数据格式
-      if (data && data.records && Array.isArray(data.records)) {
+      if (data && data.records && Array.isArray(data.records) && data.records.length > 0) {
         return data;
       }
       
@@ -125,52 +133,6 @@ export async function fetchLatestLPR(): Promise<LPRData | null> {
   } catch (err) {
     console.error('Failed to fetch latest LPR:', err);
     return null;
-  }
-}
-
-/**
- * 获取历史LPR数据（获取更多历史记录）
- * @returns LPR数据数组，如果获取失败返回空数组
- */
-export async function fetchLPRHistory(): Promise<LPRData[]> {
-  try {
-    const data = await fetchWithFallback(LPR_HISTORY_API_URL);
-    
-    if (!data.records || !Array.isArray(data.records)) {
-      throw new Error('Invalid history data format');
-    }
-    
-    // 历史数据格式可能不同，需要解析
-    const result: LPRData[] = [];
-    
-    // 如果返回的是单个最新数据格式
-    if (data.records.length === 2 && data.records[0].termCode) {
-      const parsed = parseLPRResponse(data);
-      if (parsed) {
-        result.push({
-          date: parsed.date,
-          oneYear: parsed.oneYear,
-          fiveYear: parsed.fiveYear,
-        });
-      }
-      return result;
-    }
-    
-    // 如果返回的是历史数据数组
-    for (const item of data.records) {
-      if (item.date && item.oneYear && item.fiveYear) {
-        result.push({
-          date: item.date,
-          oneYear: parseFloat(item.oneYear),
-          fiveYear: parseFloat(item.fiveYear),
-        });
-      }
-    }
-    
-    return result;
-  } catch (err) {
-    console.error('Failed to fetch LPR history:', err);
-    return [];
   }
 }
 
