@@ -49,15 +49,16 @@ export function calculateInterest(
   params: CalculationParams, 
   lprData: LPRData[]
 ): CalculationResult {
-  const { 
-    startDate, 
-    endDate, 
-    principal, 
-    rateMode, 
-    dayAlgorithm, 
-    dayBase, 
+  const {
+    startDate,
+    endDate,
+    principal,
+    rateMode,
+    dayAlgorithm,
+    dayBase,
     interestMethod,
-    rateMultiplier 
+    rateMultiplier,
+    customRate
   } = params;
 
   // 验证日期
@@ -67,6 +68,16 @@ export function calculateInterest(
 
   if (principal <= 0) {
     throw new Error('计息金额必须大于0');
+  }
+
+  // 自定义利率校验
+  if (interestMethod === 'customRate') {
+    if (!(customRate > 0)) {
+      throw new Error('请输入有效的自定义年利率（大于0）');
+    }
+    if (customRate > 100) {
+      throw new Error('自定义年利率不能超过100%');
+    }
   }
 
   const details: InterestDetail[] = [];
@@ -273,6 +284,36 @@ export function calculateInterest(
       totalDays = days;
       break;
     }
+
+    case 'customRate': {
+      calculationProcess.push('=== 自定义利率计算 ===');
+      calculationProcess.push(`本金: ¥${formatMoney(principal)}`);
+      calculationProcess.push(`自定义年利率: ${customRate}%`);
+      calculationProcess.push(`天数算法: ${dayAlgorithm === 'headNotTail' ? '算头不算尾' : '两头都算'}`);
+      calculationProcess.push(`天数基准: ${dayBase}天`);
+      calculationProcess.push('');
+
+      const days = calculateDays(startDate, endDate, dayAlgorithm);
+      const interest = (principal * customRate * days) / (dayBase * 100);
+
+      const formula = `¥${formatMoney(principal)} × ${customRate}% × ${days}天 ÷ ${dayBase}天 = ¥${(interest).toFixed(2)}`;
+
+      calculationProcess.push(`计息天数: ${days}天`);
+      calculationProcess.push(`计算: ${formula}`);
+
+      details.push({
+        period: `${formatDate(startDate)} 至 ${formatDate(endDate)}`,
+        days,
+        rate: customRate,
+        principal,
+        interest: Math.round(interest * 100) / 100,
+        formula
+      });
+
+      totalInterest = interest;
+      totalDays = days;
+      break;
+    }
   }
 
   // 计算有效年利率
@@ -301,7 +342,8 @@ export function useCalculator(lprData: LPRData[]) {
     dayAlgorithm: 'bothEnds',
     dayBase: 365,
     interestMethod: 'startMonthLPR',
-    rateMultiplier: 1
+    rateMultiplier: 1,
+    customRate: 12
   });
 
   const [result, setResult] = useState<CalculationResult | null>(null);
@@ -345,10 +387,11 @@ export function useCalculator(lprData: LPRData[]) {
       endDate: '',
       principal: 0,
       rateMode: 'oneYear',
-      dayAlgorithm: 'headNotTail',
-      dayBase: 360,
-      interestMethod: 'segmentLPR',
-      rateMultiplier: 1
+      dayAlgorithm: 'bothEnds',
+      dayBase: 365,
+      interestMethod: 'startMonthLPR',
+      rateMultiplier: 1,
+      customRate: 12
     });
     setResult(null);
     setError(null);

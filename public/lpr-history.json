@@ -1,0 +1,421 @@
+{
+  "source": "chinamoney.com.cn",
+  "fetchedAt": "2026-11-16T14:10:19Z",
+  "records": [
+    {
+      "date": "2026-06-22",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2026-05-20",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2026-04-21",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2026-03-20",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2026-02-24",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2026-01-20",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-12-22",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-11-20",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-10-20",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-09-22",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-08-20",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-07-21",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-06-20",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-05-20",
+      "oneYear": 3,
+      "fiveYear": 3.5
+    },
+    {
+      "date": "2025-04-21",
+      "oneYear": 3.1,
+      "fiveYear": 3.6
+    },
+    {
+      "date": "2025-03-20",
+      "oneYear": 3.1,
+      "fiveYear": 3.6
+    },
+    {
+      "date": "2025-02-20",
+      "oneYear": 3.1,
+      "fiveYear": 3.6
+    },
+    {
+      "date": "2025-01-20",
+      "oneYear": 3.1,
+      "fiveYear": 3.6
+    },
+    {
+      "date": "2024-12-20",
+      "oneYear": 3.1,
+      "fiveYear": 3.6
+    },
+    {
+      "date": "2024-11-20",
+      "oneYear": 3.1,
+      "fiveYear": 3.6
+    },
+    {
+      "date": "2024-10-21",
+      "oneYear": 3.1,
+      "fiveYear": 3.6
+    },
+    {
+      "date": "2024-09-20",
+      "oneYear": 3.35,
+      "fiveYear": 3.85
+    },
+    {
+      "date": "2024-08-20",
+      "oneYear": 3.35,
+      "fiveYear": 3.85
+    },
+    {
+      "date": "2024-07-22",
+      "oneYear": 3.35,
+      "fiveYear": 3.85
+    },
+    {
+      "date": "2024-06-20",
+      "oneYear": 3.45,
+      "fiveYear": 3.95
+    },
+    {
+      "date": "2024-05-20",
+      "oneYear": 3.45,
+      "fiveYear": 3.95
+    },
+    {
+      "date": "2024-04-22",
+      "oneYear": 3.45,
+      "fiveYear": 3.95
+    },
+    {
+      "date": "2024-03-20",
+      "oneYear": 3.45,
+      "fiveYear": 3.95
+    },
+    {
+      "date": "2024-02-20",
+      "oneYear": 3.45,
+      "fiveYear": 3.95
+    },
+    {
+      "date": "2024-01-22",
+      "oneYear": 3.45,
+      "fiveYear": 4.2
+    },
+    {
+      "date": "2023-12-20",
+      "oneYear": 3.45,
+      "fiveYear": 4.2
+    },
+    {
+      "date": "2023-11-20",
+      "oneYear": 3.45,
+      "fiveYear": 4.2
+    },
+    {
+      "date": "2023-10-20",
+      "oneYear": 3.45,
+      "fiveYear": 4.2
+    },
+    {
+      "date": "2023-09-20",
+      "oneYear": 3.45,
+      "fiveYear": 4.2
+    },
+    {
+      "date": "2023-08-21",
+      "oneYear": 3.45,
+      "fiveYear": 4.2
+    },
+    {
+      "date": "2023-07-20",
+      "oneYear": 3.55,
+      "fiveYear": 4.2
+    },
+    {
+      "date": "2023-06-20",
+      "oneYear": 3.55,
+      "fiveYear": 4.2
+    },
+    {
+      "date": "2023-05-22",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2023-04-20",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2023-03-20",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2023-02-20",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2023-01-20",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2022-12-20",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2022-11-21",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2022-10-20",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2022-09-20",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2022-08-22",
+      "oneYear": 3.65,
+      "fiveYear": 4.3
+    },
+    {
+      "date": "2022-07-20",
+      "oneYear": 3.7,
+      "fiveYear": 4.45
+    },
+    {
+      "date": "2022-06-20",
+      "oneYear": 3.7,
+      "fiveYear": 4.45
+    },
+    {
+      "date": "2022-05-20",
+      "oneYear": 3.7,
+      "fiveYear": 4.45
+    },
+    {
+      "date": "2022-04-20",
+      "oneYear": 3.7,
+      "fiveYear": 4.6
+    },
+    {
+      "date": "2022-03-21",
+      "oneYear": 3.7,
+      "fiveYear": 4.6
+    },
+    {
+      "date": "2022-02-21",
+      "oneYear": 3.7,
+      "fiveYear": 4.6
+    },
+    {
+      "date": "2022-01-20",
+      "oneYear": 3.7,
+      "fiveYear": 4.6
+    },
+    {
+      "date": "2021-12-20",
+      "oneYear": 3.8,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-11-22",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-10-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-09-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-08-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-07-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-06-21",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-05-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-04-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-03-22",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-02-22",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2021-01-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-12-21",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-11-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-10-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-09-21",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-08-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-07-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-06-22",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-05-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-04-20",
+      "oneYear": 3.85,
+      "fiveYear": 4.65
+    },
+    {
+      "date": "2020-03-20",
+      "oneYear": 4.05,
+      "fiveYear": 4.75
+    },
+    {
+      "date": "2020-02-20",
+      "oneYear": 4.05,
+      "fiveYear": 4.75
+    },
+    {
+      "date": "2020-01-20",
+      "oneYear": 4.15,
+      "fiveYear": 4.8
+    },
+    {
+      "date": "2019-12-20",
+      "oneYear": 4.15,
+      "fiveYear": 4.8
+    },
+    {
+      "date": "2019-11-20",
+      "oneYear": 4.15,
+      "fiveYear": 4.8
+    },
+    {
+      "date": "2019-10-21",
+      "oneYear": 4.2,
+      "fiveYear": 4.85
+    },
+    {
+      "date": "2019-09-20",
+      "oneYear": 4.2,
+      "fiveYear": 4.85
+    },
+    {
+      "date": "2019-08-20",
+      "oneYear": 4.25,
+      "fiveYear": 4.85
+    }
+  ]
+}

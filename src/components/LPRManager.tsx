@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { 
-  X, Plus, Trash2, Edit2, Download, Upload, RefreshCw, 
-  AlertTriangle, Check, Globe
+import {
+  X, Plus, Trash2, Edit2, Download, Upload, RefreshCw,
+  AlertTriangle, Check, Globe, Server
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import type { LPRData } from '@/data/lprData';
 import { useLPRData } from '@/hooks/useLPRData';
+import { getWorkerUrl, setWorkerUrl, testWorkerUrl } from '@/utils/lprFetcher';
 import { toast } from 'sonner';
 
 interface LPRManagerProps {
@@ -38,7 +39,42 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
   const [editFiveYear, setEditFiveYear] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showWorkerSettings, setShowWorkerSettings] = useState(false);
+  const [workerUrlInput, setWorkerUrlInput] = useState(() => getWorkerUrl());
+  const [workerUrlSaved, setWorkerUrlSaved] = useState(() => !!getWorkerUrl());
+  const [isTestingWorker, setIsTestingWorker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveWorkerUrl = async () => {
+    const url = workerUrlInput.trim();
+    if (!url) {
+      setWorkerUrl('');
+      setWorkerUrlSaved(false);
+      toast.success('已清除 Worker 代理，将使用公共代理');
+      return;
+    }
+    if (!/^https:\/\/[^\s]+\.workers\.dev\/?$/.test(url)) {
+      toast.error('地址格式不正确，应为 https://xxx.workers.dev');
+      return;
+    }
+    setIsTestingWorker(true);
+    const ok = await testWorkerUrl(url);
+    setIsTestingWorker(false);
+    if (ok) {
+      setWorkerUrl(url);
+      setWorkerUrlSaved(true);
+      toast.success('Worker 代理已保存且可用');
+    } else {
+      toast.error('该地址无法连通，请检查 Worker 是否已部署');
+    }
+  };
+
+  const handleClearWorkerUrl = () => {
+    setWorkerUrl('');
+    setWorkerUrlInput('');
+    setWorkerUrlSaved(false);
+    toast.success('已清除 Worker 代理');
+  };
 
   if (!open) return null;
 
@@ -203,14 +239,62 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
           {/* 检查结果 */}
           {lastCheckResult && (
             <div className={`mt-2 p-2 rounded text-xs ${
-              lastCheckResult.updated 
-                ? 'bg-green-100 text-green-800' 
+              lastCheckResult.updated
+                ? 'bg-green-100 text-green-800'
                 : 'bg-gray-100 text-gray-600'
             }`}>
               {lastCheckResult.updated ? '✓ ' : '• '}
               {lastCheckResult.message}
             </div>
           )}
+
+          {/* 自建Worker代理设置 */}
+          <div className="mt-3 pt-3 border-t border-blue-200">
+            <button
+              onClick={() => setShowWorkerSettings(!showWorkerSettings)}
+              className="flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 transition-colors"
+            >
+              <Server className="w-3.5 h-3.5" />
+              自建 Worker 代理（推荐，提升在线获取稳定性）
+              {workerUrlSaved ? ' · 已配置' : ''}
+            </button>
+            {showWorkerSettings && (
+              <div className="mt-2 space-y-2">
+                <Input
+                  placeholder="https://你的-worker.workers.dev"
+                  value={workerUrlInput}
+                  onChange={(e) => setWorkerUrlInput(e.target.value)}
+                  className="h-8 text-xs bg-white"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSaveWorkerUrl}
+                    disabled={isTestingWorker}
+                    className="h-7 text-xs gap-1"
+                  >
+                    {isTestingWorker ? <Spinner className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+                    保存
+                  </Button>
+                  {workerUrlSaved && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleClearWorkerUrl}
+                      className="h-7 text-xs"
+                    >
+                      清除
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-blue-600 leading-relaxed">
+                  公共代理不稳定，自建 Cloudflare Worker 后把地址填在这里即可（免费额度10万次/天）。
+                  部署方法见项目内 cloudflare-worker.js。
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 操作栏 */}

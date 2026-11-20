@@ -13,7 +13,7 @@ const STORAGE_TIMESTAMP = 'lpr_calculator_timestamp';
 const STORAGE_VERSION = 'lpr_calculator_version';
 
 // 当前数据版本，用于强制刷新
-const CURRENT_VERSION = '1.2';
+const CURRENT_VERSION = '1.3';
 
 // 从localStorage读取数据
 function loadFromStorage(): LPRData[] | null {
@@ -69,48 +69,46 @@ export function getLastUpdateTime(): string | null {
   return getStorageTimestamp();
 }
 
-// 从构建产物中读取预抓取的LPR数据（方案一：GitHub Actions构建时嵌入）
-async function loadBuildTimeLPR(): Promise<LPRData | null> {
+// 从构建产物中读取预抓取的LPR历史数据（方案一：GitHub Actions构建时嵌入）
+// 支持两种格式：{ records: LPRData[] } 或纯数组 LPRData[]
+async function loadBuildTimeHistory(): Promise<LPRData[]> {
   try {
-    const response = await fetch('./lpr-latest.json', {
+    const response = await fetch('./lpr-history.json', {
       method: 'GET',
       cache: 'no-cache',
     });
-    
-    if (!response.ok) return null;
-    
+
+    if (!response.ok) return [];
+
     const data = await response.json();
-    
+    const records = Array.isArray(data) ? data : data.records;
+
+    if (!Array.isArray(records)) return [];
+
     // 验证数据格式
-    if (data.date && typeof data.oneYear === 'number' && typeof data.fiveYear === 'number') {
-      return {
-        date: data.date,
-        oneYear: data.oneYear,
-        fiveYear: data.fiveYear,
-      };
-    }
-    
-    return null;
+    const valid = records.filter(
+      (r: LPRData) =>
+        r.date &&
+        /^\d{4}-\d{2}-\d{2}$/.test(r.date) &&
+        typeof r.oneYear === 'number' &&
+        typeof r.fiveYear === 'number'
+    );
+
+    return valid;
   } catch {
-    return null;
+    return [];
   }
 }
 
-// 将构建时数据合并到现有数据中
-function mergeBuildTimeData(existing: LPRData[], buildTime: LPRData): LPRData[] {
-  const index = existing.findIndex(d => d.date === buildTime.date);
-  
-  if (index >= 0) {
-    // 更新已有记录
-    const updated = [...existing];
-    updated[index] = buildTime;
-    return updated;
-  }
-  
-  // 插入新记录，保持降序
-  const updated = [buildTime, ...existing];
-  updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  return updated;
+// 将构建时数据合并到现有数据中（批量，构建时数据优先，按日期去重）
+function mergeBuildTimeData(existing: LPRData[], buildTimeList: LPRData[]): LPRData[] {
+  if (!buildTimeList || buildTimeList.length === 0) return existing;
+
+  const map = new Map<string, LPRData>();
+  for (const d of existing) map.set(d.date, d);
+  for (const d of buildTimeList) map.set(d.date, d); // 构建时数据覆盖同日期记录
+
+  return [...map.values()].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export function useLPRData() {
@@ -138,21 +136,18 @@ export function useLPRData() {
   // 页面加载时：先读取构建时嵌入的LPR数据，再尝试在线获取
   useEffect(() => {
     async function initData() {
-      // 步骤1：读取构建时嵌入的数据（方案一，最可靠）
-      const buildTimeLPR = await loadBuildTimeLPR();
-      
-      if (buildTimeLPR) {
-        setLprData(prev => {
-          const merged = mergeBuildTimeData(prev, buildTimeLPR);
-          return merged;
-        });
+      // 步骤1：读取构建时嵌入的完整历史数据（方案一，最可靠）
+      const buildTimeHistory = await loadBuildTimeHistory();
+
+      if (buildTimeHistory.length > 0) {
+        setLprData(prev => mergeBuildTimeData(prev, buildTimeHistory));
       }
-      
-      // 步骤2：尝试CORS代理在线获取（补充方案）
+
+      // 步骤2：尝试在线获取最近一年数据，补齐两次构建之间缺失的月份
       if (shouldAutoCheck()) {
         try {
           const result = await checkAndUpdateLPR(lprData);
-          if (result.updated && result.newEntry) {
+          if (result.updated && result.newEntries.length > 0) {
             setLprData(result.data);
           }
           setLastCheckTime();
@@ -161,27 +156,35 @@ export function useLPRData() {
         }
       }
     }
-    
+
     initData();
   }, []);
 
   // 手动检查更新
   const checkUpdate = async (): Promise<boolean> => {
     if (isChecking) return false;
-    
+
     setIsChecking(true);
     setLastCheckResult(null);
-    
-    // 先尝试方案一：重新读取构建时数据
+
+    // 先尝试方案一：重新读取构建时嵌入的完整历史数据
     try {
-      const buildTimeLPR = await loadBuildTimeLPR();
-      if (buildTimeLPR) {
-        const existing = lprData.find(d => d.date === buildTimeLPR.date);
-        if (!existing || existing.oneYear !== buildTimeLPR.oneYear || existing.fiveYear !== buildTimeLPR.fiveYear) {
-          setLprData(prev => mergeBuildTimeData(prev, buildTimeLPR));
+      const buildTimeHistory = await loadBuildTimeHistory();
+      if (buildTimeHistory.length > 0) {
+        const existingDates = new Set(lprData.map(d => d.date));
+        const missing = buildTimeHistory.filter(d => {
+          const existing = lprData.find(x => x.date === d.date);
+          return !existing || existing.oneYear !== d.oneYear || existing.fiveYear !== d.fiveYear;
+        });
+
+        if (missing.length > 0) {
+          setLprData(prev => mergeBuildTimeData(prev, buildTimeHistory));
+          const latest = buildTimeHistory[0];
           setLastCheckResult({
             updated: true,
-            message: `已更新：${buildTimeLPR.date} 一年期${buildTimeLPR.oneYear}% 五年期${buildTimeLPR.fiveYear}%`,
+            message: existingDates.size === 0
+              ? `已加载构建数据：最新 ${latest.date} 一年期${latest.oneYear}% 五年期${latest.fiveYear}%`
+              : `已更新 ${missing.length} 条数据，最新 ${latest.date} 一年期${latest.oneYear}% 五年期${latest.fiveYear}%`,
           });
           setIsChecking(false);
           return true;
@@ -190,35 +193,36 @@ export function useLPRData() {
     } catch {
       // 忽略
     }
-    
-    // 再尝试方案二：CORS代理在线获取
-    try {
-      const result = await checkAndUpdateLPR(lprData);
-      setLastCheckTime();
-      
-      if (result.updated && result.newEntry) {
-        setLprData(result.data);
-        setLastCheckResult({
-          updated: true,
-          message: `在线获取成功！${result.newEntry.date} 一年期${result.newEntry.oneYear}% 五年期${result.newEntry.fiveYear}%`,
-        });
-        return true;
-      } else {
-        setLastCheckResult({
-          updated: false,
-          message: '当前已是最新数据',
-        });
-        return false;
-      }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : '未知错误';
+
+    // 再尝试方案二：在线获取最近一年数据（自建Worker / 公共代理）
+    const result = await checkAndUpdateLPR(lprData);
+    setLastCheckTime();
+
+    if (result.error) {
+      // 网络获取失败
       setLastCheckResult({
         updated: false,
-        message: `检查失败：${errorMsg}`,
+        message: result.error,
+      });
+      setIsChecking(false);
+      return false;
+    }
+
+    if (result.updated && result.newEntries.length > 0) {
+      setLprData(result.data);
+      const latest = result.newEntries[0];
+      const more = result.newEntries.length > 1 ? `（共${result.newEntries.length}条）` : '';
+      setLastCheckResult({
+        updated: true,
+        message: `在线获取成功！最新 ${latest.date} 一年期${latest.oneYear}% 五年期${latest.fiveYear}%${more}`,
+      });
+      return true;
+    } else {
+      setLastCheckResult({
+        updated: false,
+        message: '当前已是最新数据',
       });
       return false;
-    } finally {
-      setIsChecking(false);
     }
   };
 
@@ -240,7 +244,7 @@ export function useLPRData() {
         return false;
       }
       
-      setLprData(prev => mergeBuildTimeData(prev, latest));
+      setLprData(prev => mergeBuildTimeData(prev, [latest]));
       
       setLastCheckTime();
       setLastCheckResult({

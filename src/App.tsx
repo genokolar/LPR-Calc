@@ -12,7 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@/components/DatePicker';
 import { LPRHistoryDialog } from '@/components/LPRHistoryDialog';
 import { LPRManager } from '@/components/LPRManager';
+import { OffsetSection, OffsetResultPanel } from '@/components/OffsetSection';
 import { useCalculator } from '@/hooks/useCalculator';
+import { useOffsetCalculator } from '@/hooks/useOffsetCalculator';
 import { useLPRData } from '@/hooks/useLPRData';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -25,14 +27,36 @@ function App() {
     isStale 
   } = useLPRData();
   
-  const { 
-    params, 
-    result, 
-    error, 
-    updateParam, 
-    calculate, 
-    reset 
+  const {
+    params,
+    result,
+    error,
+    updateParam,
+    calculate,
+    reset
   } = useCalculator(lprData);
+
+  const {
+    offsetParams,
+    offsetResult,
+    offsetError,
+    updateOffset,
+    addRepayment,
+    updateRepayment,
+    removeRepayment,
+    runOffset,
+    resetOffset,
+  } = useOffsetCalculator(lprData);
+
+  // 模式：普通计息 / 还款冲抵（两套输入界面与结果页面）
+  const [mode, setMode] = useState<'normal' | 'offset'>('normal');
+  const switchMode = (m: 'normal' | 'offset') => {
+    setMode(m);
+    // 冲抵模式不支持的计息方式自动回退到起始月LPR
+    if (m === 'offset' && (params.interestMethod === 'segmentLPR' || params.interestMethod === 'averageLPR' || params.interestMethod === 'endMonthLPR')) {
+      updateParam('interestMethod', 'startMonthLPR');
+    }
+  };
   
   const [showHistory, setShowHistory] = useState(false);
   const [showManager, setShowManager] = useState(false);
@@ -78,8 +102,9 @@ function App() {
       ['开始日期', params.startDate, '', '', '', ''],
       ['截止日期', params.endDate, '', '', '', ''],
       ['计息金额', params.principal.toString(), '', '', '', ''],
-      ['利率模式', params.rateMode === 'oneYear' ? '一年期LPR' : '五年期LPR', '', '', '', ''],
-      ['利率倍数', params.rateMultiplier.toString(), '', '', '', ''],
+      ['利率模式', params.interestMethod === 'customRate' ? '自定义利率' : (params.rateMode === 'oneYear' ? '一年期LPR' : '五年期LPR'), '', '', '', ''],
+      ['利率倍数', params.interestMethod === 'customRate' ? '-' : params.rateMultiplier.toString(), '', '', '', ''],
+      ...(params.interestMethod === 'customRate' ? [['自定义年利率', params.customRate + '%', '', '', '', '']] : []),
       ['天数算法', params.dayAlgorithm === 'headNotTail' ? '算头不算尾' : '两头都算', '', '', '', ''],
       ['天数基准', params.dayBase.toString(), '', '', '', ''],
       ['计息方式', params.interestMethod, '', '', '', '']
@@ -99,6 +124,40 @@ function App() {
     link.click();
     
     toast.success('计算结果已导出');
+  };
+
+  // 导出还款冲抵明细为CSV
+  const exportOffsetToCSV = () => {
+    if (!offsetResult) return;
+    const f = (n: number) => n.toFixed(2);
+    const headers = ['期间', '天数', '期初本金(元)', '区间利息(元)', '期初欠息(元)', '应付合计(元)', '还款(元)', '冲抵利息(元)', '折抵本金(元)', '期末本金(元)', '期末欠息(元)'];
+    const rows = offsetResult.rows.map(r => [
+      r.period, r.days, f(r.openingPrincipal), f(r.interestAccrued), f(r.interestOpening),
+      f(r.totalDue), f(r.payment), f(r.interestSettled), f(r.principalOffset), f(r.closingPrincipal), f(r.interestCarryover),
+    ]);
+    rows.push([
+      offsetResult.finalSegment.period + '（后续计息）', offsetResult.finalSegment.days,
+      f(offsetResult.finalSegment.principal), f(offsetResult.finalSegment.interest),
+      '', '', '', '', '', '', '',
+    ]);
+    const summary = [
+      [],
+      ['汇总'],
+      ['原始本金', f(offsetResult.initialPrincipal)],
+      ['累计冲抵利息', f(offsetResult.totalInterestSettled)],
+      ['累计折抵本金', f(offsetResult.totalPrincipalOffset)],
+      ['折抵后剩余本金', f(offsetResult.finalPrincipal)],
+      ['剩余欠付利息', f(offsetResult.interestCarryover)],
+      ['截止日后续利息', f(offsetResult.finalInterest)],
+      ['诉请总额（剩余本金+欠付利息+后续利息）', f(offsetResult.totalClaim)],
+    ];
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(',')), ...summary.map(r => r.join(','))].join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `还款冲抵明细_${params.startDate}_${offsetParams.continueDate}.csv`;
+    link.click();
+    toast.success('冲抵明细已导出');
   };
 
   return (
@@ -140,6 +199,14 @@ function App() {
           </div>
         </div>
 
+        {/* 模式切换：普通计息 / 还款冲抵 */}
+        <Tabs value={mode} onValueChange={(v) => switchMode(v as 'normal' | 'offset')} className="mb-6">
+          <TabsList className="grid w-full max-w-xl mx-auto grid-cols-2 h-11">
+            <TabsTrigger value="normal" className="text-sm">普通计息</TabsTrigger>
+            <TabsTrigger value="offset" className="text-sm">还款冲抵</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="grid lg:grid-cols-2 gap-6">
           {/* 左侧输入区域 */}
           <Card className="shadow-lg border-0">
@@ -150,6 +217,157 @@ function App() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
+              {mode === 'offset' ? (
+              <>
+              {/* ===== 还款冲抵模式输入 ===== */}
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">开始日期（起息日）</Label>
+                <DatePicker
+                  value={params.startDate}
+                  onChange={(date) => updateParam('startDate', date)}
+                  placeholder="点击选择开始日期"
+                  minDate={earliestDate}
+                  maxDate={format(new Date(), 'yyyy-MM-dd')}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">借款本金</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    placeholder="请输入借款本金"
+                    value={params.principal || ''}
+                    onChange={(e) => updateParam('principal', parseFloat(e.target.value) || 0)}
+                    className="pr-12"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">元</span>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* 冲抵利率（固定一年期LPR；无利率模式与分段/平均选项） */}
+              <div className="space-y-3">
+                <Label className="text-gray-700 font-medium">冲抵利率</Label>
+                <RadioGroup
+                  value={params.interestMethod}
+                  onValueChange={(v) => updateParam('interestMethod', v as typeof params.interestMethod)}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="startMonthLPR" id="offsetStart" />
+                    <Label htmlFor="offsetStart" className="cursor-pointer text-sm">起始月LPR</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="customRate" id="offsetCustom" />
+                    <Label htmlFor="offsetCustom" className="cursor-pointer text-sm">自定义利率</Label>
+                  </div>
+                </RadioGroup>
+                {params.interestMethod === 'customRate' && (
+                  <div className="flex items-center gap-2 pl-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max="100"
+                      value={params.customRate || ''}
+                      onChange={(e) => updateParam('customRate', parseFloat(e.target.value) || 0)}
+                      placeholder="请输入年利率"
+                      className="w-36"
+                    />
+                    <span className="text-sm text-gray-600">%（年利率）</span>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400">
+                  冲抵按一年期LPR计算，利率锚定合同成立时（起始月）LPR（民间借贷司法保护上限标准），可设利率倍数（如4倍）。
+                </p>
+              </div>
+
+              {/* 利率倍数（自定义利率时隐藏） */}
+              {params.interestMethod !== 'customRate' && (
+                <div className="space-y-2">
+                  <Label className="text-gray-700 font-medium">利率倍数</Label>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => updateParam('rateMultiplier', Math.max(0.1, params.rateMultiplier - 0.1))}
+                      className="h-10 w-10"
+                    >
+                      -
+                    </Button>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={params.rateMultiplier}
+                      onChange={(e) => updateParam('rateMultiplier', parseFloat(e.target.value) || 1)}
+                      className="w-24 text-center"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => updateParam('rateMultiplier', params.rateMultiplier + 0.1)}
+                      className="h-10 w-10"
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 天数算法 */}
+              <div className="space-y-3">
+                <Label className="text-gray-700 font-medium">天数算法</Label>
+                <RadioGroup
+                  value={params.dayAlgorithm}
+                  onValueChange={(v) => updateParam('dayAlgorithm', v as 'headNotTail' | 'bothEnds')}
+                  className="flex flex-wrap gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="bothEnds" id="offsetBothEnds" />
+                    <Label htmlFor="offsetBothEnds" className="cursor-pointer">两头都算</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="headNotTail" id="offsetHeadNotTail" />
+                    <Label htmlFor="offsetHeadNotTail" className="cursor-pointer">算头不算尾</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* 天数基准 */}
+              <div className="space-y-3">
+                <Label className="text-gray-700 font-medium">天数基准</Label>
+                <RadioGroup
+                  value={params.dayBase.toString()}
+                  onValueChange={(v) => updateParam('dayBase', parseInt(v) as 360 | 365)}
+                  className="flex flex-wrap gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="365" id="offsetBase365" />
+                    <Label htmlFor="offsetBase365" className="cursor-pointer">365天</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="360" id="offsetBase360" />
+                    <Label htmlFor="offsetBase360" className="cursor-pointer">360天</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* 还款明细 */}
+              <OffsetSection
+                repayments={offsetParams.repayments}
+                continueDate={offsetParams.continueDate}
+                baseStartDate={params.startDate}
+                onAddRepayment={addRepayment}
+                onUpdateRepayment={updateRepayment}
+                onRemoveRepayment={removeRepayment}
+                onContinueDateChange={(d) => updateOffset('continueDate', d)}
+              />
+              </>
+              ) : (
+              <>
+              {/* ===== 普通计息模式输入 ===== */}
               {/* 日期选择 */}
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -192,24 +410,26 @@ function App() {
 
               <Separator />
 
-              {/* 利率模式 */}
-              <div className="space-y-3">
-                <Label className="text-gray-700 font-medium">利率模式</Label>
-                <RadioGroup
-                  value={params.rateMode}
-                  onValueChange={(v) => updateParam('rateMode', v as 'oneYear' | 'fiveYear')}
-                  className="flex flex-wrap gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="oneYear" id="oneYear" />
-                    <Label htmlFor="oneYear" className="cursor-pointer">一年期LPR</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fiveYear" id="fiveYear" />
-                    <Label htmlFor="fiveYear" className="cursor-pointer">五年期LPR</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+              {/* 利率模式（自定义利率时隐藏） */}
+              {params.interestMethod !== 'customRate' && (
+                <div className="space-y-3">
+                  <Label className="text-gray-700 font-medium">利率模式</Label>
+                  <RadioGroup
+                    value={params.rateMode}
+                    onValueChange={(v) => updateParam('rateMode', v as 'oneYear' | 'fiveYear')}
+                    className="flex flex-wrap gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="oneYear" id="oneYear" />
+                      <Label htmlFor="oneYear" className="cursor-pointer">一年期LPR</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="fiveYear" id="fiveYear" />
+                      <Label htmlFor="fiveYear" className="cursor-pointer">五年期LPR</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              )}
 
               {/* 天数算法 */}
               <div className="space-y-3">
@@ -273,10 +493,32 @@ function App() {
                     <RadioGroupItem value="averageLPR" id="averageLPR" />
                     <Label htmlFor="averageLPR" className="cursor-pointer text-sm">平均LPR</Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="customRate" id="customRate" />
+                    <Label htmlFor="customRate" className="cursor-pointer text-sm">自定义利率</Label>
+                  </div>
                 </RadioGroup>
+
+                {/* 自定义利率输入框 */}
+                {params.interestMethod === 'customRate' && (
+                  <div className="mt-3 flex items-center gap-2 pl-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max="100"
+                      value={params.customRate || ''}
+                      onChange={(e) => updateParam('customRate', parseFloat(e.target.value) || 0)}
+                      placeholder="请输入年利率"
+                      className="w-36"
+                    />
+                    <span className="text-sm text-gray-600">%（年利率）</span>
+                  </div>
+                )}
               </div>
 
-              {/* 利率倍数 */}
+              {/* 利率倍数（自定义利率时隐藏） */}
+              {params.interestMethod !== 'customRate' && (
               <div className="space-y-2">
                 <Label className="text-gray-700 font-medium">利率倍数</Label>
                 <div className="flex items-center gap-3">
@@ -305,18 +547,41 @@ function App() {
                   </Button>
                 </div>
               </div>
+              )}
+              </>
+              )}
 
               {/* 错误提示 */}
-              {error && (
-                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
-                  {error}
-                </div>
+              {mode === 'offset' ? (
+                offsetError && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                    {offsetError}
+                  </div>
+                )
+              ) : (
+                error && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )
               )}
 
               {/* 操作按钮 */}
               <div className="flex gap-3 pt-2">
                 <Button
-                  onClick={calculate}
+                  onClick={() => {
+                    if (mode === 'offset') {
+                      runOffset({
+                        ...params,
+                        // 冲抵以合同成立时（起始月）LPR为锚；历史遗留的截止月LPR回退为起始月LPR
+                        interestMethod: params.interestMethod === 'endMonthLPR' ? 'startMonthLPR' : params.interestMethod,
+                        rateMode: 'oneYear',
+                        endDate: offsetParams.continueDate || params.endDate,
+                      });
+                    } else {
+                      calculate();
+                    }
+                  }}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 h-12 text-lg"
                 >
                   <Calculator className="w-5 h-5 mr-2" />
@@ -324,7 +589,7 @@ function App() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={reset}
+                  onClick={() => { reset(); resetOffset(); }}
                   className="h-12 px-6"
                 >
                   <RotateCcw className="w-5 h-5 mr-2" />
@@ -340,7 +605,65 @@ function App() {
               <CardTitle className="text-lg">计算结果</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              {result ? (
+              {mode === 'offset' ? (
+                offsetResult ? (
+                  <div className="space-y-6">
+                    {/* 主要结果：诉请总额 */}
+                    <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
+                      <p className="text-gray-600 mb-2">诉请总额（剩余本金 + 欠付利息 + 后续利息）</p>
+                      <p className="text-4xl font-bold text-green-600">
+                        ¥{offsetResult.totalClaim.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+
+                    {/* 概要 */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center py-2 border-b">
+                        <span className="text-gray-600">原始本金</span>
+                        <span className="font-medium">
+                          ¥{offsetResult.initialPrincipal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b">
+                        <span className="text-gray-600">折抵后剩余本金</span>
+                        <span className="font-medium text-green-700">
+                          ¥{offsetResult.finalPrincipal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b">
+                        <span className="text-gray-600">剩余欠付利息</span>
+                        <span className="font-medium">
+                          ¥{offsetResult.interestCarryover.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b">
+                        <span className="text-gray-600">截止日后续利息</span>
+                        <span className="font-medium">
+                          ¥{offsetResult.finalInterest.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 冲抵汇总卡片 + 明细表 + 计算过程 */}
+                    <OffsetResultPanel result={offsetResult} />
+
+                    {/* 导出按钮 */}
+                    <Button
+                      variant="outline"
+                      onClick={exportOffsetToCSV}
+                      className="w-full"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      导出冲抵明细
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-400">
+                    <Calculator className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p>请填写借款与还款信息后点击"开始计算"</p>
+                  </div>
+                )
+              ) : result ? (
                 <div className="space-y-6">
                   {/* 主要结果 */}
                   <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
@@ -349,6 +672,7 @@ function App() {
                       ¥{result.totalInterest.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
+
 
                   {/* 详细信息 */}
                   <div className="space-y-3">
