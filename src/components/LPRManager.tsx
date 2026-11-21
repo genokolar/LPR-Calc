@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import {
   X, Plus, Trash2, Edit2, Download, Upload, RefreshCw,
-  AlertTriangle, Check, Globe, Server
+  AlertTriangle, Check, Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import type { LPRData } from '@/data/lprData';
 import { useLPRData } from '@/hooks/useLPRData';
-import { getWorkerUrl, setWorkerUrl, testWorkerUrl } from '@/utils/lprFetcher';
 import { toast } from 'sonner';
 
 interface LPRManagerProps {
@@ -29,7 +28,6 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
     importFromCSV,
     resetToDefault,
     checkUpdate,
-    forceRefresh,
     isStale 
   } = useLPRData();
   
@@ -39,42 +37,7 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
   const [editFiveYear, setEditFiveYear] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showWorkerSettings, setShowWorkerSettings] = useState(false);
-  const [workerUrlInput, setWorkerUrlInput] = useState(() => getWorkerUrl());
-  const [workerUrlSaved, setWorkerUrlSaved] = useState(() => !!getWorkerUrl());
-  const [isTestingWorker, setIsTestingWorker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSaveWorkerUrl = async () => {
-    const url = workerUrlInput.trim();
-    if (!url) {
-      setWorkerUrl('');
-      setWorkerUrlSaved(false);
-      toast.success('已清除 Worker 代理，将使用公共代理');
-      return;
-    }
-    if (!/^https:\/\/[^\s]+\.workers\.dev\/?$/.test(url)) {
-      toast.error('地址格式不正确，应为 https://xxx.workers.dev');
-      return;
-    }
-    setIsTestingWorker(true);
-    const ok = await testWorkerUrl(url);
-    setIsTestingWorker(false);
-    if (ok) {
-      setWorkerUrl(url);
-      setWorkerUrlSaved(true);
-      toast.success('Worker 代理已保存且可用');
-    } else {
-      toast.error('该地址无法连通，请检查 Worker 是否已部署');
-    }
-  };
-
-  const handleClearWorkerUrl = () => {
-    setWorkerUrl('');
-    setWorkerUrlInput('');
-    setWorkerUrlSaved(false);
-    toast.success('已清除 Worker 代理');
-  };
 
   if (!open) return null;
 
@@ -166,17 +129,9 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
 
   const handleCheckUpdate = async () => {
     toast.promise(checkUpdate(), {
-      loading: '正在检查更新...',
-      success: (updated) => updated ? '发现新数据并已更新' : '当前已是最新数据',
-      error: '检查失败，请稍后重试',
-    });
-  };
-
-  const handleForceRefresh = async () => {
-    toast.promise(forceRefresh(), {
-      loading: '正在获取最新数据...',
-      success: (updated) => updated ? '获取成功' : '获取失败',
-      error: '获取失败，请稍后重试',
+      loading: '正在同步...',
+      success: (updated) => updated ? '已同步最新数据' : '本地数据已是最新',
+      error: '同步失败，请稍后重试',
     });
   };
 
@@ -205,14 +160,15 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
           </button>
         </div>
 
-        {/* 在线获取区域 */}
+        {/* 数据同步区域 */}
         <div className="p-4 border-b bg-blue-50">
           <div className="flex items-center gap-2 mb-2">
             <Globe className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-900">在线获取最新LPR</span>
+            <span className="text-sm font-medium text-blue-900">数据更新</span>
           </div>
-          <p className="text-xs text-blue-700 mb-3">
-            从中国货币网(chinamoney.com.cn)自动获取最新LPR数据
+          <p className="text-xs text-blue-700 mb-3 leading-relaxed">
+            LPR 数据随网站每月自动构建更新（每月 20-24 日公布当期 LPR 后）。
+            急需更新时可点击下方按钮重新同步构建数据，或在下方手动添加 / 批量导入。
           </p>
           <div className="flex gap-2">
             <Button 
@@ -222,21 +178,11 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
               className="gap-1 bg-blue-600 hover:bg-blue-700"
             >
               {isChecking ? <Spinner className="w-3 h-3" /> : <RefreshCw className="w-3.5 h-3.5" />}
-              检查更新
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={handleForceRefresh}
-              disabled={isChecking}
-              className="gap-1"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              强制获取
+              同步数据
             </Button>
           </div>
           
-          {/* 检查结果 */}
+          {/* 同步结果 */}
           {lastCheckResult && (
             <div className={`mt-2 p-2 rounded text-xs ${
               lastCheckResult.updated
@@ -247,54 +193,6 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
               {lastCheckResult.message}
             </div>
           )}
-
-          {/* 自建Worker代理设置 */}
-          <div className="mt-3 pt-3 border-t border-blue-200">
-            <button
-              onClick={() => setShowWorkerSettings(!showWorkerSettings)}
-              className="flex items-center gap-1 text-xs text-blue-700 hover:text-blue-900 transition-colors"
-            >
-              <Server className="w-3.5 h-3.5" />
-              自建 Worker 代理（推荐，提升在线获取稳定性）
-              {workerUrlSaved ? ' · 已配置' : ''}
-            </button>
-            {showWorkerSettings && (
-              <div className="mt-2 space-y-2">
-                <Input
-                  placeholder="https://你的-worker.workers.dev"
-                  value={workerUrlInput}
-                  onChange={(e) => setWorkerUrlInput(e.target.value)}
-                  className="h-8 text-xs bg-white"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleSaveWorkerUrl}
-                    disabled={isTestingWorker}
-                    className="h-7 text-xs gap-1"
-                  >
-                    {isTestingWorker ? <Spinner className="w-3 h-3" /> : <Check className="w-3 h-3" />}
-                    保存
-                  </Button>
-                  {workerUrlSaved && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={handleClearWorkerUrl}
-                      className="h-7 text-xs"
-                    >
-                      清除
-                    </Button>
-                  )}
-                </div>
-                <p className="text-[11px] text-blue-600 leading-relaxed">
-                  公共代理不稳定，自建 Cloudflare Worker 后把地址填在这里即可（免费额度10万次/天）。
-                  部署方法见项目内 cloudflare-worker.js。
-                </p>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* 操作栏 */}
@@ -446,7 +344,7 @@ export function LPRManager({ open, onClose }: LPRManagerProps) {
         <div className="p-3 border-t bg-gray-50 text-xs text-gray-500 rounded-b-xl">
           数据存储在浏览器本地，更换浏览器或清除缓存后数据将丢失。建议定期导出备份。
           <br />
-          每月20日（遇节假日顺延）9:00后公布新一期LPR，可点击"检查更新"获取。
+          每月20日（遇节假日顺延）9:00后公布新一期LPR，网站会在每月 20-24 日自动构建更新数据。
         </div>
       </div>
 

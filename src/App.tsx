@@ -209,7 +209,7 @@ function App() {
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* 左侧输入区域 */}
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-lg border-0 min-w-0">
             <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Info className="w-5 h-5" />
@@ -600,7 +600,7 @@ function App() {
           </Card>
 
           {/* 右侧结果区域 */}
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-lg border-0 min-w-0">
             <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
               <CardTitle className="text-lg">计算结果</CardTitle>
             </CardHeader>
@@ -826,7 +826,7 @@ function App() {
           <p>数据来源于全国银行间同业拆借中心，本计算器结果仅供参考</p>
           <p className="mt-1">LPR数据范围：{earliestDate} 至 {latestLPR.date}</p>
           <p className="mt-1 text-xs">
-            提示：可通过"LPR数据管理"功能手动更新最新利率数据
+            LPR 数据每月自动更新，亦可在"LPR数据管理"中手动维护
           </p>
           <p className="mt-3 text-xs text-gray-400">
             键圈欢乐多 - 蜀ICP备19008711号

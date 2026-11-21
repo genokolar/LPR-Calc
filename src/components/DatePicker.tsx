@@ -122,15 +122,15 @@ export function DatePicker({
         <Button
           variant="outline"
           className={cn(
-            "w-full justify-start text-left font-normal",
+            "w-full min-w-0 justify-start text-left font-normal",
             !value && "text-muted-foreground"
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
+          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
           {value ? (
-            format(new Date(value), "yyyy年MM月dd日", { locale: zhCN })
+            <span className="truncate">{format(new Date(value), "yyyy年MM月dd日", { locale: zhCN })}</span>
           ) : (
-            <span>{placeholder}</span>
+            <span className="truncate">{placeholder}</span>
           )}
         </Button>
       </PopoverTrigger>

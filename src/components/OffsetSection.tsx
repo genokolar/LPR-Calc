@@ -49,9 +49,10 @@ export function OffsetSection({
       {/* 还款明细列表 */}
       <div className="space-y-2">
         {repayments.map((rp, idx) => (
-          <div key={rp.id} className="flex items-center gap-2">
+          // 小屏（<640px）换两行：日期独占一行，金额+删除第二行；桌面端保持一行
+          <div key={rp.id} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
             <span className="w-5 text-xs text-gray-400 shrink-0">{idx + 1}.</span>
-            <div className="flex-1">
+            <div className="w-[calc(100%-1.75rem)] sm:w-auto sm:flex-1 sm:min-w-0">
               <DatePicker
                 value={rp.date}
                 onChange={(d) => onUpdateRepayment(rp.id, { date: d })}
@@ -59,7 +60,7 @@ export function OffsetSection({
                 minDate={baseStartDate || undefined}
               />
             </div>
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0 ml-7 sm:ml-0">
               <Input
                 type="number"
                 min="0"
@@ -87,10 +88,10 @@ export function OffsetSection({
         ))}
       </div>
 
-      {/* 继续计息截止日 */}
-      <div className="flex items-center gap-2">
-        <Label className="text-xs font-medium text-gray-600 w-28 shrink-0">继续计息至</Label>
-        <div className="flex-1">
+      {/* 继续计息截止日：小屏(<640px)改两行堆叠，标签与日期框各占一行、全宽 */}
+      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+        <Label className="text-xs font-medium text-gray-600 w-28 shrink-0 sm:w-28 w-full">继续计息至</Label>
+        <div className="flex-1 min-w-0 w-full sm:w-auto">
           <DatePicker
             value={continueDate}
             onChange={onContinueDateChange}
@@ -129,7 +130,7 @@ export function OffsetResultPanel({ result }: OffsetResultProps) {
       <div>
         <h4 className="text-sm font-medium text-gray-700 mb-2">还款冲抵明细</h4>
         <div className="overflow-x-auto border rounded-lg bg-white">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[720px] text-xs">
             <thead>
               <tr className="bg-gray-50 text-gray-600">
                 <th className="p-2 text-left font-medium">期间</th>

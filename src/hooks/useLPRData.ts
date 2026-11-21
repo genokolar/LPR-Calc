@@ -1,12 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { LPRData } from '@/data/lprData';
 import { lprHistoryData as defaultData } from '@/data/lprData';
-import { 
-  checkAndUpdateLPR, 
-  fetchLatestLPR,
-  shouldAutoCheck, 
-  setLastCheckTime 
-} from '@/utils/lprFetcher';
 
 const STORAGE_KEY = 'lpr_calculator_data';
 const STORAGE_TIMESTAMP = 'lpr_calculator_timestamp';
@@ -133,131 +127,56 @@ export function useLPRData() {
     saveToStorage(lprData);
   }, [lprData]);
 
-  // 页面加载时：先读取构建时嵌入的LPR数据，再尝试在线获取
+  // 页面加载时：读取构建时嵌入的LPR数据
+  // （数据由 GitHub Actions 每月 20-24 日自动抓取更新，浏览器端不再发起在线请求）
   useEffect(() => {
     async function initData() {
-      // 步骤1：读取构建时嵌入的完整历史数据（方案一，最可靠）
       const buildTimeHistory = await loadBuildTimeHistory();
-
       if (buildTimeHistory.length > 0) {
         setLprData(prev => mergeBuildTimeData(prev, buildTimeHistory));
-      }
-
-      // 步骤2：尝试在线获取最近一年数据，补齐两次构建之间缺失的月份
-      if (shouldAutoCheck()) {
-        try {
-          const result = await checkAndUpdateLPR(lprData);
-          if (result.updated && result.newEntries.length > 0) {
-            setLprData(result.data);
-          }
-          setLastCheckTime();
-        } catch {
-          // 静默失败，构建时数据已足够
-        }
       }
     }
 
     initData();
   }, []);
 
-  // 手动检查更新
+  // 手动同步：重新读取构建时嵌入的LPR历史数据并与本地合并
   const checkUpdate = async (): Promise<boolean> => {
     if (isChecking) return false;
 
     setIsChecking(true);
     setLastCheckResult(null);
 
-    // 先尝试方案一：重新读取构建时嵌入的完整历史数据
     try {
       const buildTimeHistory = await loadBuildTimeHistory();
-      if (buildTimeHistory.length > 0) {
-        const existingDates = new Set(lprData.map(d => d.date));
-        const missing = buildTimeHistory.filter(d => {
-          const existing = lprData.find(x => x.date === d.date);
-          return !existing || existing.oneYear !== d.oneYear || existing.fiveYear !== d.fiveYear;
-        });
-
-        if (missing.length > 0) {
-          setLprData(prev => mergeBuildTimeData(prev, buildTimeHistory));
-          const latest = buildTimeHistory[0];
-          setLastCheckResult({
-            updated: true,
-            message: existingDates.size === 0
-              ? `已加载构建数据：最新 ${latest.date} 一年期${latest.oneYear}% 五年期${latest.fiveYear}%`
-              : `已更新 ${missing.length} 条数据，最新 ${latest.date} 一年期${latest.oneYear}% 五年期${latest.fiveYear}%`,
-          });
-          setIsChecking(false);
-          return true;
-        }
-      }
-    } catch {
-      // 忽略
-    }
-
-    // 再尝试方案二：在线获取最近一年数据（自建Worker / 公共代理）
-    const result = await checkAndUpdateLPR(lprData);
-    setLastCheckTime();
-
-    if (result.error) {
-      // 网络获取失败
-      setLastCheckResult({
-        updated: false,
-        message: result.error,
-      });
-      setIsChecking(false);
-      return false;
-    }
-
-    if (result.updated && result.newEntries.length > 0) {
-      setLprData(result.data);
-      const latest = result.newEntries[0];
-      const more = result.newEntries.length > 1 ? `（共${result.newEntries.length}条）` : '';
-      setLastCheckResult({
-        updated: true,
-        message: `在线获取成功！最新 ${latest.date} 一年期${latest.oneYear}% 五年期${latest.fiveYear}%${more}`,
-      });
-      return true;
-    } else {
-      setLastCheckResult({
-        updated: false,
-        message: '当前已是最新数据',
-      });
-      return false;
-    }
-  };
-
-  // 直接获取最新（强制刷新）
-  const forceRefresh = async (): Promise<boolean> => {
-    if (isChecking) return false;
-    
-    setIsChecking(true);
-    setLastCheckResult(null);
-    
-    try {
-      const latest = await fetchLatestLPR();
-      
-      if (!latest) {
-        setLastCheckResult({
-          updated: false,
-          message: '获取失败，请检查网络连接',
-        });
+      if (buildTimeHistory.length === 0) {
+        setLastCheckResult({ updated: false, message: '未找到构建数据文件' });
         return false;
       }
-      
-      setLprData(prev => mergeBuildTimeData(prev, [latest]));
-      
-      setLastCheckTime();
-      setLastCheckResult({
-        updated: true,
-        message: `已获取最新数据：${latest.date} 一年期${latest.oneYear}% 五年期${latest.fiveYear}%`,
+
+      const missing = buildTimeHistory.filter(d => {
+        const existing = lprData.find(x => x.date === d.date);
+        return !existing || existing.oneYear !== d.oneYear || existing.fiveYear !== d.fiveYear;
       });
-      return true;
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : '未知错误';
+
+      if (missing.length > 0) {
+        setLprData(prev => mergeBuildTimeData(prev, buildTimeHistory));
+        const latest = buildTimeHistory[0];
+        setLastCheckResult({
+          updated: true,
+          message: `已同步 ${missing.length} 条，最新 ${latest.date} 一年期${latest.oneYear}% 五年期${latest.fiveYear}%`,
+        });
+        return true;
+      }
+
+      const latest = buildTimeHistory[0];
       setLastCheckResult({
         updated: false,
-        message: `获取失败：${errorMsg}`,
+        message: `本地数据已是最新（${latest.date}）。数据每月随网站自动构建更新`,
       });
+      return false;
+    } catch {
+      setLastCheckResult({ updated: false, message: '同步失败，请刷新页面重试' });
       return false;
     } finally {
       setIsChecking(false);
@@ -389,7 +308,6 @@ export function useLPRData() {
     getLatestLPR,
     getEarliestLPRDate,
     checkUpdate,
-    forceRefresh,
     isStale: isDataStale(),
   };
 }
